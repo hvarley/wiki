@@ -1,32 +1,30 @@
 "use client"
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import styles from "./page.module.css";
-import ReactQuill from 'react-quill';
+
 import { dogData } from "./constants/dogData";
+import ContentEditor from "./components/contentEditor/contentEdior";
+import DOMPurify from "dompurify";
 
 interface Documents {
-  id?: string;
+  id: string;
   title: string;
   content: string;
 }
 
-export default function Home() {
-  // const [wiki, setWiki] = useState<Documents[]>([]);
+const Home: React.FC<Documents> = () => {
+
   const [searchData, setSearchData] = useState([]);
   const [searchValue, setSearchValue] = useState('');
   const [titleValue, setTitleValue] = useState('');
   const [contentValue, setContentValue] = useState('');
-
-  const uid = () => {
-    return Date.now().toString(36) + Math.random().toString(36);
-  }
+  const [fullViewId, setFullViewId] = useState('');
+  const [editId, setEditId] = useState('');
 
   const handleChangeTitle = (event: React.ChangeEvent<HTMLInputElement>) => {
     setTitleValue(event.target.value);
   };
-
 
   const searchWiki = (search: string) => {
     let wiki = JSON.parse(localStorage.getItem('wiki') || '[]');
@@ -37,47 +35,92 @@ export default function Home() {
   const localWiki = JSON.parse(localStorage.getItem('wiki') || '[]');
 
   const dataToMap = searchData.length > 0 ? searchData : localWiki;
-  
-  const setDummyData = (dogData: any) => {
-    localStorage.setItem('wiki', JSON.stringify(dogData));
-    setSearchData(dogData);
+
+  const currentArticle = localWiki.find((doc: Documents) => doc.id === fullViewId);
+
+  const reset = () => {
+    setTitleValue('');
+    setContentValue('');
+    setEditId('');
   }
 
+  useEffect(() => {
+    if (localWiki.length === 0) {
+      localStorage.setItem('wiki', JSON.stringify(dogData));
+    }
+  },[]);
+
   return (
-    <main className={styles.main}>
-      <h1 className={styles.title}>Welcome to the Wiki</h1>
-      <button
-        onClick={() => setDummyData(dogData)}
-        >Set Dog Data Set</button>
-      <input type="text" onChange={(event) => setSearchValue(event.target.value)} placeholder="search" />
-      <button onClick={() => searchWiki(searchValue)}>search</button>
-      <button onClick={() => setSearchData([])}>reset</button>
-      <div>
-        <input type="text" value={titleValue} onChange={handleChangeTitle} placeholder="add title" />
-        <ReactQuill theme="snow" value={contentValue} onChange={setContentValue} />
-        <button onClick={() => { 
-          localStorage.setItem('wiki', JSON.stringify([...localWiki, { id: uid(), content: contentValue, title: titleValue }]));
-          setTitleValue('');
-          setContentValue('');
-        }}>add content</button>
-      </div>
+    <>
+    <header style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+      <h1>Welcome to the Wiki</h1>
+    </header>
+    <main style={{display: "flex"}}>
+        <nav style={{marginRight: "10px", paddingRight: "10px", borderRight: "1px solid grey"}}>
+          <input type="text" onChange={(event) => setSearchValue(event.target.value)} placeholder="search" />
+          <button onClick={() => searchWiki(searchValue)}>search</button>
+          <ul style={{listStyle: "none", marginTop: "20px", marginBottom: "20px", padding: "0"}}>
+            {dataToMap.map((doc: Documents) => (
+              <li key={doc.id} style={{marginBottom: "5px"}}>
+                <strong>{doc.title}</strong>
+                <div>
+                  <button 
+                    onClick={() => {
+                      setFullViewId(doc.id);
+                      setEditId('');
+                    }}>view</button>
+                  <button onClick={() => {
+                    const newWiki = localWiki.filter((wiki: Documents) => wiki.id !== doc.id);
+                    localStorage.setItem('wiki', JSON.stringify(newWiki));
+                    setSearchData(newWiki);
+                    reset();
+                  }}>delete</button>
+                  <button onClick={() => {
+                      setEditId(doc.id);
+                      setTitleValue(doc.title);
+                      setContentValue(doc.content);
+                    }}>edit</button>
+                </div>
+                
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => {
+            setFullViewId('');
+            reset();
+          }}>Add an Article</button>
 
-      
-      <ul>
-        {dataToMap.map((doc: Documents) => (
-  
-          <li key={doc.id}>
-            <h2>{doc.title}</h2>
-            <div dangerouslySetInnerHTML={{ __html: doc.content }} />
-            <button onClick={() => {
-              const newWiki = localWiki.filter((wiki: Documents) => wiki.id !== doc.id);
-              localStorage.setItem('wiki', JSON.stringify(newWiki));
-              setSearchData(newWiki);
-            }}>delete</button>
-          </li>
-        ))}
-      </ul>
-
-    </main>
+        </nav>
+        {editId || !currentArticle
+        ? <div>
+            <h2>Add/edit a wiki article</h2>
+            <ContentEditor 
+              id={editId}
+              titleValue={titleValue} 
+              handleChangeTitle={handleChangeTitle} 
+              contentValue={contentValue} 
+              setContentValue={setContentValue} 
+              reset={reset}
+            />
+          </div> 
+        : <div>
+            {currentArticle && (
+              <div>
+                <h2>{currentArticle.title}</h2>
+                <div 
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(
+                      currentArticle.content),
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        }
+      </main> 
+    </>
+    
   );
-}
+};
+
+export default Home;
