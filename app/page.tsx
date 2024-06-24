@@ -27,26 +27,28 @@ const Home: React.FC<Documents> = () => {
   };
 
   const searchWiki = (search: string) => {
-    let wiki = JSON.parse(localStorage.getItem('wiki') || '[]');
+    let wiki = typeof document !== 'undefined' && JSON.parse(localStorage.getItem('wiki') || '[]');
     const result = wiki.filter((doc: Documents) => doc.title.includes(search));
     setSearchData(result);
   }
 
-  const localWiki = JSON.parse(localStorage.getItem('wiki') || '[]');
+  const localWiki = typeof document !== 'undefined' && JSON.parse(localStorage.getItem('wiki') || '[]');
 
   const dataToMap = searchData.length > 0 ? searchData : localWiki;
 
   const currentArticle = localWiki.find((doc: Documents) => doc.id === fullViewId);
 
-  const reset = () => {
+  const reset = async(id?:string) => {
+    setFullViewId(id || '');
     setTitleValue('');
     setContentValue('');
     setEditId('');
+    setSearchData([]);
   }
 
   useEffect(() => {
     if (localWiki.length === 0) {
-      localStorage.setItem('wiki', JSON.stringify(dogData));
+      typeof document !== 'undefined' && localStorage.setItem('wiki', JSON.stringify(dogData));
     }
   },[]);
 
@@ -71,7 +73,7 @@ const Home: React.FC<Documents> = () => {
                     }}>view</button>
                   <button onClick={() => {
                     const newWiki = localWiki.filter((wiki: Documents) => wiki.id !== doc.id);
-                    localStorage.setItem('wiki', JSON.stringify(newWiki));
+                    typeof document !== 'undefined' && localStorage.setItem('wiki', JSON.stringify(newWiki));
                     setSearchData(newWiki);
                     reset();
                   }}>delete</button>
